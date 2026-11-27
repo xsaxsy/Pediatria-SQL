@@ -1,9 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { neon } from "@neondatabase/serverless";
+import { obtenerSql } from "../src/backend/config/database.js";
 import { autorizarRoles } from "../src/backend/validators/authMiddleware.js";
 import { obtenerIdAlumno } from "../src/backend/validators/alumnoSesionValidator.js";
-
-const sql = neon(process.env.DATABASE_URL);
 
 export default async function handler(req, res) {
     res.setHeader("Cache-Control", "private, no-store");
@@ -60,7 +58,7 @@ export default async function handler(req, res) {
         const etiquetasJson = JSON.stringify(etiquetas);
         const tiposJson = JSON.stringify(tiposRespuesta);
 
-        const guardado = await sql`
+        const guardado = await obtenerSql()`
             WITH paciente_nuevo AS (
                 INSERT INTO paciente (folio, nombre, fecha_nacimiento, sexo, domicilio)
                 VALUES (
@@ -79,13 +77,13 @@ export default async function handler(req, res) {
                 RETURNING id_valoracion
             ),
             tutor_nuevo AS (
-                INSERT INTO tutor (nombre, parentesco, telefono)
-                VALUES (${tutorNombre.trim()}, ${tutorParentesco.trim()}, ${tutorTelefono.trim()})
+                INSERT INTO tutor (nombre, telefono)
+                VALUES (${tutorNombre.trim()}, ${tutorTelefono.trim()})
                 RETURNING id_tutor
             ),
             relacion_tutor AS (
-                INSERT INTO paciente_tutor (id_paciente, id_tutor, tutor_principal)
-                SELECT paciente_nuevo.id_paciente, tutor_nuevo.id_tutor, TRUE
+                INSERT INTO paciente_tutor (id_paciente, id_tutor, tutor_principal, parentesco)
+                SELECT paciente_nuevo.id_paciente, tutor_nuevo.id_tutor, TRUE, ${tutorParentesco.trim()}
                 FROM paciente_nuevo CROSS JOIN tutor_nuevo
                 RETURNING id_paciente
             ),
@@ -155,21 +153,17 @@ export default async function handler(req, res) {
                     AND pregunta.enunciado = opcion.enunciado
                 ON CONFLICT (id_pregunta, texto)
                 DO UPDATE SET orden = EXCLUDED.orden
-                RETURNING id_opcion, id_pregunta, texto
+                RETURNING id_opcion
             ),
-            respuestas_guardadas AS (
-                INSERT INTO respuesta (id_valoracion, id_pregunta, id_opcion, respuesta_texto, respuesta_numero)
+            valores_guardados AS (
+                INSERT INTO respuesta_valor (id_valoracion, id_pregunta, valor)
                 SELECT
                     valoracion.id_valoracion,
                     pregunta.id_pregunta,
-                    NULL::INTEGER,
                     CASE
+                        WHEN jsonb_typeof(respuesta.valor) = 'number' THEN (respuesta.valor #>> '{}')::NUMERIC::TEXT
                         WHEN jsonb_typeof(respuesta.valor) = 'string' THEN respuesta.valor #>> '{}'
                         ELSE respuesta.valor::TEXT
-                    END,
-                    CASE
-                        WHEN jsonb_typeof(respuesta.valor) = 'number' THEN (respuesta.valor #>> '{}')::NUMERIC
-                        ELSE NULL
                     END
                 FROM respuestas AS respuesta
                 INNER JOIN catalogo_secciones AS seccion
@@ -180,14 +174,10 @@ export default async function handler(req, res) {
                 CROSS JOIN valoracion_nueva AS valoracion
                 WHERE respuesta.tipo_respuesta NOT IN ('select', 'multiple')
 
-                UNION ALL
-
-                SELECT
-                    valoracion.id_valoracion,
-                    opcion.id_pregunta,
-                    opcion.id_opcion,
-                    NULL::TEXT,
-                    NULL::NUMERIC
+                RETURNING id_respuesta
+            ), selecciones_guardadas AS (
+                INSERT INTO respuesta_opcion (id_valoracion, id_opcion)
+                SELECT valoracion.id_valoracion, opcion.id_opcion
                 FROM opciones_guardadas AS opcion
                 CROSS JOIN valoracion_nueva AS valoracion
                 RETURNING id_respuesta
@@ -195,7 +185,8 @@ export default async function handler(req, res) {
             SELECT
                 paciente_nuevo.id_paciente,
                 valoracion_nueva.id_valoracion,
-                (SELECT COUNT(*)::INTEGER FROM respuestas_guardadas) AS respuestas_guardadas
+                ((SELECT COUNT(*) FROM valores_guardados) +
+                 (SELECT COUNT(*) FROM selecciones_guardadas))::INTEGER AS respuestas_guardadas
             FROM paciente_nuevo
             CROSS JOIN valoracion_nueva
             CROSS JOIN relacion_tutor

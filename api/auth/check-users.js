@@ -1,7 +1,5 @@
 
-import { neon } from "@neondatabase/serverless";
-
-const sql = neon(process.env.DATABASE_URL);
+import { obtenerSql } from "../../src/backend/config/database.js";
 
 export default async function handler(req, res) {
     if (req.method !== "GET") {
@@ -13,7 +11,7 @@ export default async function handler(req, res) {
     }
 
     try {
-        const resultado = await sql`
+        const resultado = await obtenerSql()`
             SELECT
                 COUNT(*)::INTEGER AS total
             FROM usuario

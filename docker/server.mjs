@@ -4,7 +4,7 @@ import { extname } from "node:path";
 import { parse as parseQuery } from "node:querystring";
 
 const root = new URL("../", import.meta.url);
-const { redirects, rewrites } = JSON.parse(await readFile(new URL("vercel.json", root), "utf8"));
+const { redirects, rewrites } = JSON.parse(await readFile(new URL("routes.json", import.meta.url), "utf8"));
 const api = new URL("api/", root);
 const handlers = new Map();
 

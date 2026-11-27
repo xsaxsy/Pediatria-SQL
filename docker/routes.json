@@ -1,16 +1,4 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "functions": {
-    "api/dashboard.js": {
-      "includeFiles": "src/backend/views/dashboard.html"
-    },
-    "api/dashboard-docente.js": {
-      "includeFiles": "src/backend/views/dashboard-docente.html"
-    },
-    "api/dashboard-admin.js": {
-      "includeFiles": "src/backend/views/dashboard-admin.html"
-    }
-  },
   "redirects": [
     {
       "source": "/src/frontend/pages/dashboard.html",

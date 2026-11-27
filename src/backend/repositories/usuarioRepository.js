@@ -1,9 +1,7 @@
-import { neon } from "@neondatabase/serverless";
-
-const sql = neon(process.env.DATABASE_URL);
+import { obtenerSql } from "../config/database.js";
 
 export async function buscarUsuarioPorCorreo(correo) {
-    const resultado = await sql`
+    const resultado = await obtenerSql()`
         SELECT
             u.id_usuario,
             u.nombre,

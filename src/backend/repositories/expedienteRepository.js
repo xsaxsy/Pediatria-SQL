@@ -46,7 +46,7 @@ export async function consultarValoracion(idUsuario, idValoracion, sql = obtener
             p.id_paciente, p.folio, p.nombre,
             p.fecha_nacimiento::TEXT, p.sexo, p.domicilio,
             COALESCE((SELECT jsonb_agg(jsonb_build_object(
-                'nombre', t.nombre, 'parentesco', t.parentesco, 'telefono', t.telefono,
+                'nombre', t.nombre, 'parentesco', pt.parentesco, 'telefono', t.telefono,
                 'principal', pt.tutor_principal) ORDER BY pt.tutor_principal DESC, t.id_tutor)
                 FROM paciente_tutor pt JOIN tutor t ON t.id_tutor = pt.id_tutor
                 WHERE pt.id_paciente = p.id_paciente), '[]'::jsonb) AS tutores,
@@ -56,11 +56,10 @@ export async function consultarValoracion(idUsuario, idValoracion, sql = obtener
                 'opciones', COALESCE((SELECT jsonb_agg(jsonb_build_object(
                     'id_opcion', op.id_opcion, 'texto', op.texto) ORDER BY op.orden, op.id_opcion)
                     FROM opcion_respuesta op WHERE op.id_pregunta = q.id_pregunta), '[]'::jsonb),
-                'valor', COALESCE(o.texto, rp.respuesta_numero::TEXT, rp.respuesta_texto))
+                'valor', rp.valor)
                 ORDER BY s.orden, s.id_seccion, q.orden, q.id_pregunta, rp.id_respuesta)
-                FROM respuesta rp JOIN pregunta q ON q.id_pregunta = rp.id_pregunta
+                FROM respuesta_detalle rp JOIN pregunta q ON q.id_pregunta = rp.id_pregunta
                 JOIN seccion s ON s.id_seccion = q.id_seccion
-                LEFT JOIN opcion_respuesta o ON o.id_opcion = rp.id_opcion
                 WHERE rp.id_valoracion = v.id_valoracion), '[]'::jsonb) AS respuestas
         FROM valoracion v JOIN paciente p ON p.id_paciente = v.id_paciente
         JOIN usuario alumno ON alumno.id_usuario = v.id_usuario
@@ -82,19 +81,33 @@ export async function modificarValoracion(idUsuario, idValoracion, datos, sql = 
                     WHERE u.id_usuario = ${idUsuario} AND u.activo = TRUE
                         AND r.nombre = ${rol} AND r.nombre IN ('Alumno', 'Docente'))
             RETURNING v.id_valoracion
-        ), borradas AS (
-            DELETE FROM respuesta rp USING autorizada a
+        ), valores_borrados AS (
+            DELETE FROM respuesta_valor rp USING autorizada a
             WHERE rp.id_valoracion = a.id_valoracion RETURNING rp.id_respuesta
-        ), guardadas AS (
-            INSERT INTO respuesta (id_valoracion, id_pregunta, id_opcion, respuesta_texto, respuesta_numero)
-            SELECT a.id_valoracion, d.id_pregunta, d.id_opcion, d.respuesta_texto, d.respuesta_numero
-            FROM autorizada a
-            CROSS JOIN jsonb_to_recordset(${JSON.stringify(datos.filas)}::jsonb)
+        ), opciones_borradas AS (
+            DELETE FROM respuesta_opcion rp USING autorizada a
+            WHERE rp.id_valoracion = a.id_valoracion RETURNING rp.id_respuesta
+        ), datos_respuesta AS (
+            SELECT d.* FROM jsonb_to_recordset(${JSON.stringify(datos.filas)}::jsonb)
                 AS d(id_pregunta INTEGER, id_opcion INTEGER, respuesta_texto TEXT, respuesta_numero NUMERIC)
-            CROSS JOIN (SELECT COUNT(*) FROM borradas) eliminadas
+        ), valores_guardados AS (
+            INSERT INTO respuesta_valor (id_valoracion, id_pregunta, valor)
+            SELECT a.id_valoracion, d.id_pregunta, COALESCE(d.respuesta_numero::TEXT, d.respuesta_texto)
+            FROM autorizada a CROSS JOIN datos_respuesta d
+            CROSS JOIN (SELECT COUNT(*) FROM valores_borrados) eliminadas
+            WHERE d.id_opcion IS NULL
+            RETURNING id_respuesta
+        ), opciones_guardadas AS (
+            INSERT INTO respuesta_opcion (id_valoracion, id_opcion)
+            SELECT a.id_valoracion, d.id_opcion
+            FROM autorizada a CROSS JOIN datos_respuesta d
+            CROSS JOIN (SELECT COUNT(*) FROM opciones_borradas) eliminadas
+            WHERE d.id_opcion IS NOT NULL
             RETURNING id_respuesta
         )
-        SELECT id_valoracion, (SELECT COUNT(*)::INTEGER FROM guardadas) AS respuestas_guardadas FROM autorizada
+        SELECT id_valoracion, ((SELECT COUNT(*) FROM valores_guardados) +
+            (SELECT COUNT(*) FROM opciones_guardadas))::INTEGER AS respuestas_guardadas
+        FROM autorizada
     `;
     return filas[0] ?? null;
 }
