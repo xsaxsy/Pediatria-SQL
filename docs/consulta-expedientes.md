@@ -52,35 +52,14 @@ atómica; todos los escritores futuros deberán actualizar también la fila de
 valoración para conservar esta garantía. Un conflicto responde 409 y pide recargar.
 No se requiere una migración nueva para estas acciones.
 
-## Conexión Neon / Vercel
+## Despliegue con Docker
 
-La dependencia `@neondatabase/serverless` ya está instalada. El código utiliza
-`DATABASE_URL` exclusivamente en el servidor, mediante
-`src/backend/config/database.js`. No necesita un servidor Express adicional.
-
-1. La responsable debe verificar que la base de pruebas tenga las migraciones
-   001 a 006 revisadas y aplicadas en orden. La consulta usa las tablas de 001–005;
-   006 solo alinea defaults del guardado. No se ejecutan migraciones desde la app.
-2. Configurar `DATABASE_URL` con la cadena de conexión proporcionada por Neon,
-   conservando sus parámetros TLS, en las variables del proyecto Vercel para el
-   entorno correspondiente. No copiar la cadena al código ni al navegador.
-3. Conservar `SESSION_SECRET` en el servidor para la autenticación existente.
-4. En desarrollo, proporcionar estas variables mediante el mecanismo local
-   existente y ejecutar el proyecto con funciones Vercel (por ejemplo `vercel dev`
-   si la CLI ya está disponible). Reiniciar tras cambiar variables. Una página
-   servida únicamente como HTML estático no ejecuta las funciones de `/api`.
-5. Tras configurar variables en Vercel, generar un nuevo despliegue y comprobar
-   con usuarios y datos de prueba: filtros, fechas, detalle y aislamiento entre
-   dos alumnos. Sin configuración, la consulta responde 503 con mensaje genérico.
-
-No se ha verificado conectividad real ni ejecutado SQL. No hacen falta nuevas
-columnas para estas consultas. El detalle usa el catálogo guardado, por lo que
-tolera las opciones históricas y los campos nuevos del formulario.
+Sigue la sección Ejecutar con Docker del README. Comprueba los filtros, las fechas, el detalle y el aislamiento entre dos alumnos con datos de prueba.
 
 ## Verificación local sin conexión
 
 `node --test tests/expedientes.test.js`
 
 Las pruebas usan repositorios y transporte simulados. La ejecución real en
-PostgreSQL/Neon y la revisión visual completa del navegador son verificaciones
+PostgreSQL y la revisión visual completa del navegador son verificaciones
 pendientes para el entorno configurado.

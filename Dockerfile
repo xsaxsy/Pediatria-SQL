@@ -10,8 +10,8 @@ COPY src ./src
 COPY database ./database
 COPY docs ./docs
 COPY tests ./tests
-COPY ["README.md", "Fuentes de pruebas.pdf", "vercel.json", "./"]
-COPY docker/server.mjs ./docker/server.mjs
+COPY ["README.md", "Fuentes de pruebas.pdf", "./"]
+COPY docker/server.mjs docker/routes.json ./docker/
 
 USER node
 EXPOSE 3000

@@ -308,7 +308,8 @@ test("operaciones SQL restringen usuario y versión sin borrar paciente o catál
         assert.ok(query.values.includes("123"));
         assert.doesNotMatch(query.text, /DELETE FROM (paciente|tutor|pregunta|opcion_respuesta)\b/);
     }
-    assert.match(queries[0].text, /DELETE FROM respuesta rp USING autorizada/);
+    assert.match(queries[0].text, /DELETE FROM respuesta_valor rp USING autorizada/);
+    assert.match(queries[0].text, /DELETE FROM respuesta_opcion rp USING autorizada/);
     assert.match(queries[1].text, /DELETE FROM valoracion v/);
 });
 

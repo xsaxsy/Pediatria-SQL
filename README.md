@@ -13,7 +13,7 @@ Este repositorio corresponde a la implementación del sistema.
 - JavaScript
 - Node.js
 - PostgreSQL
-- Neon
+- Docker Compose
 - Git / GitHub
 
 ## Estructura
@@ -24,25 +24,32 @@ Este repositorio corresponde a la implementación del sistema.
 - `docs` — Documentación
 - `tests` — Pruebas
 
+## Migración a tercera forma normal
+
+Docker Compose aplica las migraciones en orden al crear una base vacía. Si la base ya tiene las migraciones 001–007, respalda la base, pausa la aplicación y aplica solo `008_normalizar_respuestas_y_tutores.sql` antes de arrancar esta versión. Ejecuta el archivo completo en una misma sesión de PostgreSQL. La transacción se revierte si encuentra datos históricos ambiguos que requieren revisión.
+
+Las respuestas de captura usan `respuesta_valor` y las selecciones usan `respuesta_opcion`. La vista `respuesta_detalle` reúne ambos tipos para la consulta. Los valores de captura conservan la representación con la que se mostraban en el expediente. El parentesco se guarda por relación en `paciente_tutor`.
+
 ## Ejecutar con Docker
 
-En la raíz del repositorio, crea un archivo `.env.local` con `DATABASE_URL` (la cadena de conexión de Neon) y `SESSION_SECRET` (una clave privada para firmar sesiones). Compose pasa esas variables al arrancar y el archivo queda fuera de la imagen.
+Crea `.env.local` con valores privados para `POSTGRES_PASSWORD` y `SESSION_SECRET`. Puedes definir `APP_PORT` para usar un puerto distinto de 3000.
 
 ```powershell
 docker compose --env-file .env.local up --build -d
-```
-
-Abre [la aplicación en localhost](http://localhost:3000). Para usar otro puerto local, agrega `APP_PORT` a `.env.local`. Puedes comprobar la conexión a Neon con una consulta de solo lectura.
-
-```powershell
 Invoke-RestMethod http://localhost:3000/api/test-db
 ```
 
-El puerto queda accesible solo desde el equipo local. Para servir la aplicación a otros equipos, usa un proxy HTTPS para las cookies de sesión seguras. El contenedor usa la base indicada por `DATABASE_URL` y arranca sin ejecutar migraciones.
+Abre [la aplicación en localhost](http://localhost:3000). PostgreSQL corre en la red interna de Compose y conserva sus datos en el volumen `postgres_data`. Para usar datos existentes, restaura un respaldo compatible y verifica las migraciones aplicadas.
+
+Una base nueva inicia sin cuentas. Para iniciar sesión, carga las cuentas del entorno desde un respaldo o créalas en PostgreSQL con sus roles y contraseñas cifradas.
+
+La aplicación publica su puerto solo en el equipo local. Para servirla a otros equipos, usa un proxy HTTPS para las cookies de sesión seguras.
 
 ```powershell
 docker compose --env-file .env.local down
 ```
+
+Oracle queda para una etapa posterior. El esquema y las consultas actuales usan PostgreSQL.
 
 ## Equipo
 

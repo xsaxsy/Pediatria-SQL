@@ -27,5 +27,4 @@ Thumbs.db
 # Archivos temporales
 *.tmp
 *.temp
-.vercel
 .env*
