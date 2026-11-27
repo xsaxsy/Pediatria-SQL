@@ -1,0 +1,9 @@
+services:
+  app:
+    build: .
+    init: true
+    ports:
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Configura DATABASE_URL para Neon}
+      SESSION_SECRET: ${SESSION_SECRET:?Configura SESSION_SECRET}
